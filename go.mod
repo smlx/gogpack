@@ -1,13 +1,12 @@
 module github.com/smlx/gogpack
 
-go 1.22.2
+go 1.25.0
+
+require github.com/alecthomas/kong v1.16.0
 
 require (
-	github.com/alecthomas/assert/v2 v2.11.0
-	github.com/alecthomas/kong v1.16.0
-)
-
-require (
-	github.com/alecthomas/repr v0.5.2 // indirect
-	github.com/hexops/gotextdiff v1.0.3 // indirect
+	go.yaml.in/yaml/v2 v2.4.2 // indirect
+	golang.org/x/image v0.44.0 // indirect
+	mvdan.cc/sh/v3 v3.13.1 // indirect
+	sigs.k8s.io/yaml v1.6.0 // indirect
 )
