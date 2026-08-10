@@ -1,0 +1,18 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/smlx/gogpack/internal/server"
+)
+
+// ServeCmd represents the `serve` command.
+type ServeCmd struct{}
+
+// Run the serve command.
+func (*ServeCmd) Run(ctx context.Context) error {
+	fmt.Println(server.New(time.Now).Serve())
+	return nil
+}
