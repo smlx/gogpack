@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,8 +13,9 @@ import (
 
 // CLI represents the command-line interface.
 type CLI struct {
+	Debug   bool       `kong:"name='debug',help='Enable debug level logging.'"`
 	Version VersionCmd `kong:"cmd,help='Print version information'"`
-	Serve   ServeCmd   `kong:"cmd,default=1,help='(default) Example serve command'"`
+	Convert ConvertCmd `kong:"cmd,help='Convert a GOG Linux installer to a Flatpak'"`
 }
 
 func main() {
@@ -26,6 +28,16 @@ func main() {
 		kong.UsageOnError(),
 		kong.BindFor(ctx),
 	)
+
+	// configure logger
+	logLevel := slog.LevelInfo
+	if cli.Debug {
+		logLevel = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: logLevel,
+	})))
+
 	// execute CLI
 	kctx.FatalIfErrorf(kctx.Run())
 }
