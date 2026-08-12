@@ -63,8 +63,8 @@ func (c *Converter) Run(ctx context.Context) (err error) {
 		if err != nil && c.pauseOnError {
 			fmt.Printf("\nError encountered: %v\n", err)
 			fmt.Printf("Workspace preserved at: %s\n", c.workspace)
-			fmt.Print("Press Enter to continue and clean up workspace...")
-			bufio.NewReader(os.Stdin).ReadBytes('\n')
+			fmt.Print("Press Enter to continue cleanup and exit...")
+			_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 		}
 		if !c.preserveWorkspace {
 			os.RemoveAll(c.workspace)
