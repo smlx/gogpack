@@ -20,7 +20,9 @@ The gogpack launcher script also wraps the game in [gamescope](https://github.co
 
 ## How gogpack works
 
-`gogpack` builds Flatpaks by extracting the contents of the GOG installer, parsing the provided `start.sh` script to discover compatibility quirks (like `LD_LIBRARY_PATH` / `LD_PRELOAD`). Finally, it generates a launcher.sh script and a Flatpak manifest, which are compiled into a standalone `.flatpak` bundle using `flatpak-builder`.
+`gogpack` builds Flatpaks by extracting the contents of the GOG installer, parsing the provided `start.sh` script to discover compatibility quirks (like `LD_LIBRARY_PATH` / `LD_PRELOAD`), and generating a launcher script and a Flatpak manifest. Finally, these artefacts are compiled into a standalone `.flatpak` bundle using `flatpak-builder`.
+
+Importantly, at no point does gogpack execute any game code. It is just extracting and repackaging.
 
 ## Usage
 
