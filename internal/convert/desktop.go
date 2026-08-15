@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"text/template"
 	"time"
+
+	"golang.org/x/image/draw"
 )
 
 const desktopTemplate = `[Desktop Entry]
@@ -51,41 +54,44 @@ var (
 	parsedAppstreamTemplate = template.Must(template.New("appstream").Parse(appstreamTemplate))
 )
 
-// generateDesktopIntegration looks for support.ico or gog.ico, extracts the PNG,
-// and creates a .desktop file.
 func (c *Converter) generateDesktopIntegration() error {
-	var iconPath string
+	var icoPath string
 	for _, name := range []string{"support.ico", "gog.ico"} {
 		p := filepath.Join(c.workspace, name)
 		if _, err := os.Stat(p); err == nil {
-			iconPath = p
+			icoPath = p
 			break
 		}
 	}
 
 	appID := fmt.Sprintf("com.gog.%s", sanitizeAppIDName(c.meta.Name))
+	pngPath := filepath.Join(c.workspace, appID+".png")
 
-	if iconPath != "" {
-		pngPath := filepath.Join(c.workspace, appID+".png")
-		if err := extractPNGFromICO(iconPath, pngPath); err != nil {
-			c.log.Warn("couldn't extract PNG from ICO", "iconPath", iconPath, "error", err)
+	if icoPath != "" {
+		if err := extractPNGFromICO(icoPath, pngPath); err != nil {
+			c.log.Warn("couldn't extract PNG from ICO", "iconPath", icoPath, "error", err)
 		}
 	} else {
-		pngPath := filepath.Join(c.workspace, appID+".png")
-		// Fallback: look for a .png in the workspace (often provided by games like World of Goo)
-		err := filepath.WalkDir(c.workspace, func(path string, d os.DirEntry, err error) error {
-			if err == nil && !d.IsDir() && filepath.Ext(d.Name()) == ".png" {
-				if data, err := os.ReadFile(path); err == nil {
-					if err := os.WriteFile(pngPath, data, 0644); err != nil {
-						c.log.Warn("couldn't write fallback PNG", "error", err)
-					}
-					return filepath.SkipAll // Stop at the first PNG
-				}
+		// Try support/icon.png first (common in newer GOG installers)
+		supportIcon := filepath.Join(c.workspace, "support", "icon.png")
+		if _, err := os.Stat(supportIcon); err == nil {
+			if err := processPNGIcon(supportIcon, pngPath, c.log); err != nil {
+				c.log.Warn("couldn't process support/icon.png", "error", err)
 			}
-			return nil
-		})
-		if err != nil {
-			c.log.Warn("couldn't walk workspace to find fallback PNG", "error", err)
+		} else {
+			// Fallback: search workspace for any .png file
+			err := filepath.WalkDir(c.workspace, func(path string, d os.DirEntry, err error) error {
+				if err != nil || d.IsDir() || filepath.Ext(d.Name()) != ".png" {
+					return nil
+				}
+				if err = processPNGIcon(path, pngPath, c.log); err != nil {
+					return nil // keep searching
+				}
+				return filepath.SkipAll // stop searching
+			})
+			if err != nil {
+				c.log.Warn("couldn't walk workspace to find fallback PNG", "error", err)
+			}
 		}
 	}
 
@@ -125,20 +131,59 @@ func (c *Converter) generateDesktopIntegration() error {
 }
 
 // extractPNGFromICO parses the ICO header and extracts the largest PNG image found.
+// processPNGIcon decodes a PNG, resizes it if needed, renames the original, and writes it to the target path.
+func processPNGIcon(srcPath, dstPath string, log *slog.Logger) error {
+	// open and decode image
+	f, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	img, err := png.Decode(f)
+	if err != nil {
+		return err
+	}
+	// ensure image meets flatpak size limits (max 512x512)
+	resized, wasResized := resizeImage(img, 512)
+	if wasResized {
+		// preserve original before resizing
+		origPath := srcPath[:len(srcPath)-4] + ".orig.png"
+		if err = os.Rename(srcPath, origPath); err != nil {
+			log.Warn("couldn't rename original PNG", "error", err)
+		}
+	} else {
+		// no resize needed: use image as-is
+		if srcPath != dstPath {
+			if err = os.Rename(srcPath, dstPath); err != nil {
+				log.Warn("couldn't move original PNG to target path", "error", err)
+			}
+		}
+		return nil
+	}
+	// write out png icon
+	out, err := os.Create(dstPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if err := png.Encode(out, resized); err != nil {
+		log.Warn("couldn't encode resized PNG", "error", err)
+		return err
+	}
+	return nil
+}
+
 func extractPNGFromICO(icoPath, outPath string) error {
 	data, err := os.ReadFile(icoPath)
 	if err != nil {
 		return err
 	}
-
 	if len(data) < 6 {
 		return fmt.Errorf("file too small to be ICO")
 	}
-
 	if binary.LittleEndian.Uint16(data[0:2]) != 0 || binary.LittleEndian.Uint16(data[2:4]) != 1 {
 		return fmt.Errorf("invalid ICO header")
 	}
-
 	count := int(binary.LittleEndian.Uint16(data[4:6]))
 	if len(data) < 6+count*16 {
 		return fmt.Errorf("ICO file truncated")
@@ -157,17 +202,13 @@ func extractPNGFromICO(icoPath, outPath string) error {
 		if height == 0 {
 			height = 256
 		}
-
 		size := int(binary.LittleEndian.Uint32(data[offset+8 : offset+12]))
 		dataOffset := int(binary.LittleEndian.Uint32(data[offset+12 : offset+16]))
-
 		if dataOffset+size > len(data) {
 			continue
 		}
-
 		imgData := data[dataOffset : dataOffset+size]
-
-		// Try to decode as PNG
+		// attempt decode
 		img, err := png.Decode(bytes.NewReader(imgData))
 		if err == nil {
 			area := width * height
@@ -182,6 +223,8 @@ func extractPNGFromICO(icoPath, outPath string) error {
 		return fmt.Errorf("no valid PNG images found in ICO")
 	}
 
+	bestImg, _ = resizeImage(bestImg, 512)
+
 	out, err := os.Create(outPath)
 	if err != nil {
 		return err
@@ -189,4 +232,26 @@ func extractPNGFromICO(icoPath, outPath string) error {
 	defer out.Close()
 
 	return png.Encode(out, bestImg)
+}
+
+// resizeImage resizes an image if its dimensions exceed maxDim, preserving aspect ratio.
+func resizeImage(img image.Image, maxDim int) (image.Image, bool) {
+	bounds := img.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	if w <= maxDim && h <= maxDim {
+		return img, false
+	}
+
+	var newW, newH int
+	if w > h {
+		newW = maxDim
+		newH = int(float64(h) * float64(maxDim) / float64(w))
+	} else {
+		newH = maxDim
+		newW = int(float64(w) * float64(maxDim) / float64(h))
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	draw.ApproxBiLinear.Scale(dst, dst.Bounds(), img, bounds, draw.Over, nil)
+	return dst, true
 }

@@ -1,8 +1,8 @@
 # gogpack
 
-GOG game installer to Flatpak converter.
-
 [![Release](https://github.com/smlx/go-cli-github/actions/workflows/release.yaml/badge.svg)](https://github.com/smlx/go-cli-github/actions/workflows/release.yaml)
+
+GOG game installer to Flatpak converter.
 
 ## Why?
 
@@ -97,18 +97,21 @@ The generated launcher script has some features:
 - You can customize gamescope by setting the `GAMESCOPE_ARGS` environment variable (if the flatpak is built with gamescope).
 - Set `FLATPAK_DEBUG=1` to enable bash execution tracing (`set -x`) in the launcher.
 
-Example:
+For example, gamescope often sets the screen resolution to `1280x720` by default. If that doesn't match your screen, you should override it:
+
 ```bash
 flatpak run --env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 1920 -H 1080" --env=FLATPAK_DEBUG=1 com.gog.GameName
 ```
 
 Flatpak is integrated with desktop app launchers so it should also show up in your graphical menu of choice.
 
-### Troubleshooting
+## Troubleshooting
+
+### Screen resolution
 
 If you encounter mouse issues—such as the cursor clicking with an offset or being unable to click certain areas of the screen—this is often caused by the game misinterpreting the display resolution. You can fix this by setting a Flatpak override for `GAMESCOPE_ARGS` to match your monitor's native resolution for both the internal game resolution (`-w`, `-h`) and the output resolution (`-W`, `-H`).
 
-For example, to set the resolution to 4K (3840x2160):
+For example, if you have a 4K monitor then to set the resolution to 4K (3840x2160):
 
 ```bash
 flatpak override --user --env=GAMESCOPE_ARGS="-w 3840 -h 2160 -W 3840 -H 2160" com.gog.GameName
@@ -128,14 +131,23 @@ To reset (remove) current overrides:
 flatpak override --user --reset com.gog.GameName
 ```
 
+### Output scaling
+
+If you use 2x scaling on your monitor, then you can make gamescope 2x scale the game the same way by setting the output size to double the game size:
+
+```bash
+flatpak override --user --env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 3840 -H 2160 -S integer" com.gog.GameName
+```
+
 ## Game compatibility
 
 I've only tested gogpack on a few games, so if you have had success with other games please send a PR to update this table!
 
-| Title           | Works? | Notes                                                                                                                                |
-| ---             | ---    | ---                                                                                                                                  |
-| Lego Bricktales | ✅     | Use resolution override if mouse can't click near edges of the screen. e.g. `--env=GAMESCOPE_ARGS="-w 3840 -h 2160 -W 3840 -H 2160"` |
-| World Of Goo    | ✅     |                                                                                                                                      |
+| Title                    | Works? | Notes                                                                                                                                                                            |
+| ---                      | ---    | ---                                                                                                                                                                              |
+| Contraption Maker + DLCs | ✅     | Use native resolution override. If you use 2x monitor scaling then fonts and pointer will need scaling. e.g. `--env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 3840 -H 2160 -S integer"` |
+| Lego Bricktales          | ✅     | Use native resolution override, otherwise mouse can't click near edges of the screen. e.g. `--env=GAMESCOPE_ARGS="-w 3840 -h 2160 -W 3840 -H 2160"`                              |
+| World Of Goo             | ✅     | Use native resolution override.                                                                                                                                                  |
 
 ## Prior art
 
