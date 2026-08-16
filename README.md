@@ -45,7 +45,7 @@ gogpack convert path/to/installer.sh
 You can also include DLCs during the conversion:
 
 ```bash
-gogpack convert path/to/installer.sh --dlc path/to/dlc1.sh --dlc path/to/dlc2.sh
+gogpack convert path/to/installer.sh path/to/dlc1.sh path/to/dlc2.sh ...
 ```
 
 You can optionally disable the Gamescope wrapper, though keeping it enabled is recommended for proper display scaling and compatibility:
@@ -143,12 +143,14 @@ flatpak override --user --env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 3840 -H 2160 -S
 
 I've only tested gogpack on a few games, so if you have had success with other games please send a PR to update this table!
 
-| Title                    | Works? | Notes                                                                                                                                                                            |
-| ---                      | ---    | ---                                                                                                                                                                              |
-| Contraption Maker + DLCs | ✅     | Use native resolution override. If you use 2x monitor scaling then fonts and pointer will need scaling. e.g. `--env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 3840 -H 2160 -S integer"` |
-| Lego Bricktales          | ✅     | Use native resolution override, otherwise mouse can't click near edges of the screen. e.g. `--env=GAMESCOPE_ARGS="-w 3840 -h 2160 -W 3840 -H 2160"`                              |
-| World Of Goo             | ✅     | Use native resolution override.                                                                                                                                                  |
+Note: all games work best with the native resolution override described above.
+
+| Title                    | Works? | Notes                                                                                                                                            |
+| ---                      | ---    | ---                                                                                                                                              |
+| Contraption Maker + DLCs | ✅     | If you use 2x monitor scaling then fonts and pointer will need scaling. e.g. `--env=GAMESCOPE_ARGS="-w 1920 -h 1080 -W 3840 -H 2160 -S integer"` |
+| Lego Bricktales          | ✅     | Without native resolution override, mouse can't click near edges of the screen. e.g. `--env=GAMESCOPE_ARGS="-w 3840 -h 2160 -W 3840 -H 2160"`    |
+| World Of Goo             | ✅     |                                                                                                                                                  |
 
 ## Prior art
 
-* [flatpak-gog](https://github.com/kujeger/flatpak-gog) does something similar, but I wanted to try implementing my own thing.
+* [flatpak-gog](https://github.com/kujeger/flatpak-gog) does something similar, but I wanted to try implementing my own thing with extra features.
